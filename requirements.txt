@@ -1,0 +1,23 @@
+fastapi
+uvicorn[standard]
+jinja2
+azure-storage-blob
+azure-storage-file-datalake>=12.3.0
+azure-identity
+python-multipart
+
+# Flask>=1,<2
+# werkzeug>=1,<2
+# flask-session~=0.3.2
+# git+https://github.com/azure-samples/ms-identity-python-samples-common
+# pyopenssl>19,<20
+
+msal
+starlette
+fastapi_msal[full]
+pydantic[dotenv]
+httpx
+gunicorn
+imageio
+opencv-python
+matplotlib

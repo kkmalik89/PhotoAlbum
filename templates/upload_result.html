@@ -1,0 +1,13 @@
+{% extends "index.html" %}
+{% block welcome_user %}
+{% endblock %}
+{% block body %}
+<h1>Dear {{ user_name }}, Welcome !!!</h1>
+<br/>
+<p white-space: pre-wrap;>  Uploaded {{ count }} files: <br/>
+{# {{ filenames }} #}
+{% autoescape false %}  {{ filenames | replace('\n', '<br>') }} 
+{% endautoescape %}
+</p>
+{% endblock %}
+

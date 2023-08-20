@@ -1,0 +1,57 @@
+{% extends "index.html" %}
+
+{% block body %}
+<!-- <h1>Dear {{ user_name }}, Welcome !</h1>
+<h3 class="text-success"><i>Relive your memories !!!</i></h3> -->
+        {% if created_dir != "" %}
+            <h3 class="text-success"> Folder created: {{ created_dir }}</h3>
+        {% endif %}
+        <br/>
+        <h4 class="text-success">Upload one or more pictures using this form:</h4>
+        <form method="post" action="/upload-photos" enctype="multipart/form-data" class="mb-4">
+            <div class="mb-3 row">
+                <label for="dir_name" class="col-sm-2">Choose the folder:</label>
+                <div class="col-sm-10">
+                    <select id="dir_name" name="dir_name">
+                        <option disabled selected value class="text-success"> -- Select the folder -- </option>
+                        {% for dir in dir_path_list %}
+                            <option value="{{dir}}">{{dir}}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3 row">
+                <label for="photos_file" class="col-sm-2">Select Pictures: </label>
+                <div class="col-sm-10">
+                    <input type="file" id="photos_file" name="photos_file" class="btn btn-outline-success mb-10" multiple>
+                </div>
+            </div>
+            <div class="mb-3 row">
+                    <input class="btn btn-outline-success col-sm-12" type="submit" value="Upload">
+            </div>
+        </form> 
+        <br/>
+        <h4 class="text-success">Want a create a new folder? If yes, please provide below information: </h4>
+        <form method="post" action="/new-folder">
+            <div class="mb-3 row">
+                <label for="dir_name" class="col-sm-2">Parent folder:</label>
+                <div class="col-sm-10">
+                    <select id="dir_name" name="dir_name">
+                        <option disabled selected value> -- select the parent folder -- </option>
+                        {% for dir in dir_path_list %}
+                            <option value="{{dir}}">{{dir}}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3 row">
+                <label for="new_folder" class="col-sm-2">New Folder Name:</label>
+                <div class="col-sm-10">
+                    <input type="text" id="new_folder" name="new_folder">
+                </div>
+            </div>
+            <div class="mb-3 row">
+                <input type="submit" class="btn btn-outline-success col-sm-12" value="Create Folder">
+            </div>
+        </form>
+{% endblock %}

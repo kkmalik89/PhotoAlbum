@@ -1,0 +1,76 @@
+{% extends "index.html" %}
+
+{% block body %}
+    <div class="bg-light">
+        <h1>Dear {{ user_name }}, Welcome !</h1>
+        <h3 class="text-success"><i>Relive your memories !!!</i></h3>
+    </div>
+    <br/>
+    <form method="post" action="/view-selected-folder" enctype="multipart/form-data">
+    <label for="dir_name">Memory:</label>
+    <select id="dir_name" name="dir_name">
+        <option disabled selected value> -- select the folder -- </option>
+        {% for dir in all_dir_list %}
+            <option value="{{dir}}">{{dir}}</option>
+        {% endfor %}
+    </select>
+    <input class="btn btn-success btn-sm" type="submit">
+    </form>
+    <br/>
+        {% if directory_path == "" %}
+            <b><p> Selected Path: / </p></b>
+        {% else %}
+            <b><p> Selected Path: {{ directory_path }} </p></b>
+        {% endif %}
+
+        {% if dir_path_list | length != 0 %}
+            <p>Sub-folders present at this path:</p>
+            <div class="row">
+                    {% for path in dir_path_list %}
+                        {% set path_without_space = path | replace(" ","%20") %}
+                        {% set href_path = url_for('view_photos_dyn',directory_path=path_without_space) %}
+                        <div class="col-xl-4 col-lg-6 col-sm-12 col-md-12">
+                                <!-- <p> Hi There</p> -->
+                                <form action="/view-selected-subfolder" method="post" enctype="multipart/form-data">
+                                    <input id="dyn_dir_name" name="dyn_dir_name" class="btn btn-outline-success mb-1" type="submit" value="{{ path }}" />
+                                </form>
+                        </div>
+                    {% endfor %}
+            </div> 
+        <br/>
+        {% endif %}      
+
+        {% if video_path_list | length != 0 %}
+            <p>Videos present at this path:</p> 
+            <div class="row">
+                {% for path in video_path_list %}
+                    {% set video_src = blob_prefix_path+path %}
+                    <div class="col-xl-12 col-lg-12 col-sm-12 col-md-12 img-thumbnail text-center bg-light">
+                        <!-- <img src='{{ img_src }}' width='auto' height='300'/> -->
+                        <!-- <img class="bottom10 pt-2" src='{{ video_src }}'/> -->
+                        <video width="320" height="240" controls>
+                            <source src='{{ video_src }}' type="video/mp4"/>
+                        Your browser does not support the video tag.
+                        </video>
+                    </div>
+                {% endfor %}
+            </div>
+        <br/>
+         {% endif %}
+         
+
+        {% if img_path_list | length != 0 %}
+            <p>Pictures present at this path:</p>
+             <div class="row">
+                {% for path in img_path_list %}
+                    {% set img_src = blob_prefix_path+path %}
+                    <div class="col-xl-12 col-lg-12 col-sm-12 col-md-12 img-thumbnail text-center bg-light">
+                        <!-- <img src='{{ img_src }}' width='auto' height='300'/> -->
+                        <img class="bottom10 img-fluid pt-2" src='{{ img_src }}'/>
+                    </div>
+                {% endfor %}
+            </div>
+        <br/>
+        {% endif %}
+        
+{% endblock %}

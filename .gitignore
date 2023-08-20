@@ -1,0 +1,15 @@
+ms-identity-python-webapp-fastapi_msal/
+__pycache__/
+Bootstrap/
+venv/
+kk_venv/
+app_config_bkp.py
+logs.txt
+test.py
+GPT_generated_auth_code.py
+image_read_write_test.py
+Photo Album Project Inspiration.docx
+token_test.py
+accessTokenStorage.py
+app_backup_5_24.py
+image_read_write_test.py
