@@ -5,12 +5,15 @@ from azure.storage.filedatalake import DataLakeServiceClient
 # from azure.storage.filedatalake._models import ContentSettings
 # import configreader
 # configDict = configreader.read_config()
+import app_config
 from PIL import Image
 import pillow_heif
 import io
-from datetime import datetime
-import app_config
 
+from azure.storage.blob import BlobServiceClient, ContainerClient, generate_container_sas, BlobSasPermissions
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from fastapi import UploadFile
 
 # connect_str=configDict['Az-Storage']['AZURE_STORAGE_CONNECTION_STRING']
 # container_name=configDict['Az-Storage']['CONTAINER_PATH']
@@ -34,14 +37,6 @@ if 'STORAGE_ACCOUNT_KEY' in os.environ:
     storage_account_key=os.getenv('STORAGE_ACCOUNT_KEY')
 else:
    storage_account_key=app_config.STORAGE_ACCOUNT_KEY
-
-if 'RECYCLE_BIN_DIRECTORY' in os.environ:
-    recycle_bin_dir=os.getenv('RECYCLE_BIN_DIRECTORY')
-else:
-   recycle_bin_dir=app_config.RECYCLE_BIN_DIRECTORY
-
-if recycle_bin_dir is None or recycle_bin_dir == '':
-    recycle_bin_dir="RecycleBin-ToBeDeleted"
 
 def get_dl_service_client():  
     try:  
@@ -84,12 +79,6 @@ def split_dir_and_img_files(path_list):
     # print (dir_path_list, img_path_list, video_path_list)
     return dir_path_list, img_path_list, video_path_list
 
-def get_blob_prefix_path(directory_path="/"):
-    # if not directory_path:
-    #      return f"https://{storage_account_name}.blob.core.windows.net/{container_name}/"
-    # return f"https://{storage_account_name}.blob.core.windows.net/{container_name}/{directory_path}/"
-    return f"https://{storage_account_name}.blob.core.windows.net/{container_name}/"
-
 def get_dl_directory_list(file_system_client, directory_path="/"):
     paths = file_system_client.get_paths(path=directory_path, recursive=True)
     path_list=['/']
@@ -127,16 +116,47 @@ def get_particular_type_files_list(file_system_client, directory_path="", file_t
     return particular_type_file_list
 
 
-def copy_heic_file_to_jpeg(file_system_client: DataLakeServiceClient.get_file_system_client, directory, file, delete_heic_file_flag):
+def get_container_client():
+    # blob_service_client = BlobServiceClient.from_connection_string(conn_str=connect_str) # create a blob service client to interact with the storage account
+    account_url="{}://{}.blob.core.windows.net".format("https", storage_account_name)
+    blob_service_client = BlobServiceClient(account_url=account_url, credential=storage_account_key)
+    try:
+        container_client = blob_service_client.get_container_client(container=container_name) # get container client to interact with the container in which images will be stored
+        container_client.get_container_properties() # get properties of the container to force exception to be thrown if container does not exist
+    except Exception as e:
+        raise
+        # container_client = blob_service_client.create_container(container_name) # create a container in the storage account if it does not exist
+    return container_client
+
+def upload_multiple_files_to_storage(container_client: ContainerClient, files_list: list[UploadFile], dir_name: str):
+    filenames = ''
+    count=0
+    for _file in files_list:
+        # print (_file.filename)
+        if dir_name == "/":
+            blob_file_name = _file.filename
+        else:
+            blob_file_name = dir_name + '/' + _file.filename
+        container_client.upload_blob(blob_file_name, _file.file, overwrite=True) # upload the file to the container using the filename as the blob name
+        filenames += _file.filename + "\n"
+        count+=1
+    filenames=filenames[:len(filenames)-1]
+    return filenames, count
+
+def copy_heic_file_to_jpeg(file_system_client: DataLakeServiceClient.get_file_system_client, directory, file):
     try:
         directory_client = file_system_client.get_directory_client(directory)
         file_client_read = directory_client.get_file_client(file)
+        #file_path = open(file_client_read,'r')
+        #file_contents = file_path.read()
+
         fileNameSplit = file.split(".")
         # print (fileNameSplit[0])
         fileNamePrefix = fileNameSplit[0]
 
         download = file_client_read.download_file()
         downloaded_bytes = download.readall()
+        print ("File downloaded")
         heif_file = pillow_heif.read_heif(downloaded_bytes)
         # print (heif_file.mode)
         # print (heif_file.size)
@@ -153,19 +173,22 @@ def copy_heic_file_to_jpeg(file_system_client: DataLakeServiceClient.get_file_sy
         coefficient = width / TARGET_WIDTH
         new_height = height / coefficient
         new_file = fileNamePrefix + ".jpeg"
-        # print (new_file)
+        print (new_file)
+        # print (TARGET_WIDTH, new_height)
+        # TARGET_WIDTH = 1020
+        # new_height = 720
         optimalSizeImage = image.resize((int(TARGET_WIDTH),int(new_height)),Image.LANCZOS)
-        # print (type(optimalSizeImage))
+        print (type(optimalSizeImage))
         imgByteArr = io.BytesIO()
+        # imgByteArr = optimalSizeImage.tobytes("xbm", "rgb")
+        # imgByteArr = optimalSizeImage.tobytes("raw")
         optimalSizeImage.save(imgByteArr, format("jpeg"),quality=50)
         imagedata = imgByteArr.getvalue()
         # print (type(downloaded_bytes), type(imgByteArr), type(imagedata))
         
         file_client_write = directory_client.create_file(new_file)
         file_client_write.upload_data(imagedata, overwrite=True)
-        if delete_heic_file_flag == 1:
-            file_client_read.delete_file()
-            # print ("Deleted File: ", file)
+
     except Exception as e:
         print(e)
         raise
@@ -176,25 +199,12 @@ def copy_heic_file_list(file_system_client: DataLakeServiceClient.get_file_syste
     print ("Number of heic files to be converted: ", heic_files_list_len)
     for file_name in heic_files_list:
         file_name_partition = file_name.rpartition("/")
-        # print (file_name_partition[0], file_name_partition[2])
-        # print (type(file_name_partition))
-        copy_heic_file_to_jpeg(file_system_client=file_system_client, directory=file_name_partition[0], file=file_name_partition[2], delete_heic_file_flag=0)    
-
-
-def overwrite_heic_file_list(file_system_client: DataLakeServiceClient.get_file_system_client, heic_files_list):
-    heic_files_list_len = len(heic_files_list)
-    print ("Number of heic files to be converted: ", heic_files_list_len)
-    for file_name in heic_files_list:
-        file_name_partition = file_name.rpartition("/")
-        # print (file_name_partition[0], file_name_partition[2])
-        # print (type(file_name_partition))
-        copy_heic_file_to_jpeg(file_system_client=file_system_client, directory=file_name_partition[0], file=file_name_partition[2], delete_heic_file_flag=1)    
-
+        print (file_name_partition[0], file_name_partition[2])
+        print (type(file_name_partition))
+        copy_heic_file_to_jpeg(file_system_client=file_system_client, directory=file_name_partition[0], file=file_name_partition[2])    
 
 def move_files_to_recycle_bin(file_system_client: DataLakeServiceClient.get_file_system_client, fileList):
-    currentTime = datetime.now()
-    currentTimeFormatted = currentTime.strftime("%Y_%m_%d_%H_%M_%S_%f")
-    bin_directory_client = file_system_client.get_directory_client(recycle_bin_dir+"/"+currentTimeFormatted)
+    bin_directory_client = file_system_client.get_directory_client("RecycleBin-ToBeDeleted")
     for filePath in fileList:
         print (filePath)
         file_name_partition = filePath.rpartition("/")
@@ -207,45 +217,69 @@ def move_files_to_recycle_bin(file_system_client: DataLakeServiceClient.get_file
 
         downloadedFile = file_client_read.download_file()
         # downloaded_bytes = download.readall()
-        # Copy the file to Recycle Bin
+
         file_client_write = bin_directory_client.create_file(file)
         file_client_write.upload_data(downloadedFile, overwrite=True)
 
-        # Delete the file from the directory 
         file_client_read.delete_file()
-    return True
 
-def permanently_delete_files(file_system_client: DataLakeServiceClient.get_file_system_client, folderName):
-    if not (folderName.startswith(recycle_bin_dir+"/")):
-        print ("Folder is not one of recycle bin folders. Exiting the function...")
-        return False
-    bin_directory_client = file_system_client.get_directory_client(folderName)
-    bin_directory_client.delete_directory()
-    return True
+        # heif_file = pillow_heif.read_heif(downloaded_bytes)
+        # # print (heif_file.mode)
+        # # print (heif_file.size)
+        # image = Image.frombytes(
+        #     heif_file.mode,
+        #     heif_file.size,
+        #     heif_file.data,
+        #     "raw",
+        # )
+        # width, height = image.size
+        # # print (width, height)
+        # # Adjust Image size by reducing width and corresponding height
+        # TARGET_WIDTH = 1000
+        # coefficient = width / TARGET_WIDTH
+        # new_height = height / coefficient
+        # new_file = fileNamePrefix + ".jpeg"
+        # # print (new_file)
+        # optimalSizeImage = image.resize((int(TARGET_WIDTH),int(new_height)),Image.LANCZOS)
+        # # print (type(optimalSizeImage))
+        # imgByteArr = io.BytesIO()
+        # optimalSizeImage.save(imgByteArr, format("jpeg"),quality=50)
+        # imagedata = imgByteArr.getvalue()
+        # # print (type(downloaded_bytes), type(imgByteArr), type(imagedata))
+        
+        # file_client_write = directory_client.create_file(new_file)
+        # file_client_write.upload_data(imagedata, overwrite=True)
+        # if delete_heic_file_flag == 1:
+        #     file_client_read.delete_file()
+        #     # print ("Deleted File: ", file)
+
+service_client=get_dl_service_client()
+file_system_client=get_dl_file_system(service_client)
+fileList = ["Mix/Friends/WhatsApp Image 2023-11-04 at 11.39.50.jpeg", "Mix/Friends/WhatsApp Image 2023-11-04 at 11.41.19.jpeg"]
+move_files_to_recycle_bin(file_system_client, fileList)
 
 
-def move_files_to_another_folder(file_system_client: DataLakeServiceClient.get_file_system_client, fileList: list, folderName: str):
-    move_to_directory_client = file_system_client.get_directory_client(folderName)
-    for filePath in fileList:
-        print (filePath)
-        file_name_partition = filePath.rpartition("/")
-        # print (file_name_partition[0], file_name_partition[2])
-        directory = file_name_partition[0]
-        file = file_name_partition[2]
+# allHeicFiles = get_particular_type_files_list(file_system_client,"Mix/Friends", file_type=".heic")
 
-        directory_client = file_system_client.get_directory_client(directory)
-        file_client_read = directory_client.get_file_client(file)
+# print (allHeicFiles)
+# print (len(allHeicFiles))
+# copy_heic_file_with_jpeg(file_system_client, "Mix/Friends", "20231205_200637.heic", container_client)
+# copy_heic_file_list(file_system_client, allHeicFiles)
+# import json
+# a="['Mix/Friends/20231205_200637.heic'\054 'Mix/Friends/20231205_200638.heic']"
+# print (a, type(a))
 
-        downloadedFile = file_client_read.download_file()
-        # downloaded_bytes = download.readall()
-        # Copy the file to Recycle Bin
-        file_client_write = move_to_directory_client.create_file(file)
-        file_client_write.upload_data(downloadedFile, overwrite=True)
+# b=list(a)
+# print (b, type(b))
+# c = a.split(",")
+# print (c, type(c))
 
-        # Delete the file from the directory 
-        file_client_read.delete_file()
-    return True
+# d=eval(a)
+# print (d, type(d))
 
+print ("The End")
+
+#
 # def upload_image_to_directory(file_system_client, directory_path, image_to_upload):
 #     directory_client = file_system_client.get_directory_client(directory_path)
 #     file_client = directory_client.create_file("IMG-20191119-WA0007-renamed.jpg")

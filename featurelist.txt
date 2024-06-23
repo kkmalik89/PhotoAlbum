@@ -1,0 +1,16 @@
+
+
+Upload page: fix selection value in drop down -- Done in view page.
+
+Upload result in same page as that of upload. keep the drop down value as is. -- Done
+
+Move files to recycle bin (Delete) / other folder : Done
+
+Form to work without submit button to view images. : Pending
+
+Clear cookie button -- Done
+
+image prefixed with deviceId : Prefixed with username -- Done
+
+Permanently delete photos/videos in Recycle Bin Folder only : Pending
+

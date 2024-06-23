@@ -35,8 +35,8 @@
         }
     </style>
     <div class="ReloadButtonAndMsg">
-        <button class="btn btn-outline-primary col-sm-2" id="ReloadButton" onclick=reloadDirList(); title="Dropdown shows only parent folder by default. If you would like to see all values, please click Refresh Folders button; it takes around 5 seconds to fetch all folder list.">Refresh Folders*</button>
-        <p class="text-primary" id="ReloadMsg">*Dropdown shows only parent folder by default and may not show the latest folder you created during the active session. If you would like to see all folders, please click Refresh Folders button; it takes around 5 seconds to fetch all folder list.</p>
+        <button class="btn btn-outline-primary col-sm-2" id="ReloadButton" onclick="reloadDirList()" title="Dropdown shows only parent folder by default. If you would like to see all values, please click Refresh Folders button; it takes around 5 seconds to fetch all folder list.">Refresh Folders*</button>
+        <p class="text-primary" id="ReloadMsg">*Dropdown shows only parent folder by default. If you would like to see all values, please click Refresh Folders button; it takes around 5 seconds to fetch all folder list.</p>
     </div>
     
     <style>
@@ -57,10 +57,8 @@
     <!-- <p id="dynamic_js_msg_view">Temp js message</p> -->
 
     {% if directory_path == "" %}
-        <div id="currentDir" style="display: none;">/</div> 
         <b><p> Selected Path: / </p></b>
     {% else %}
-        <div id="currentDir" style="display: none;">{{ directory_path }}</div> 
         <b><p> Selected Path: {{ directory_path }} </p></b>
     {% endif %}
 
@@ -70,10 +68,10 @@
             {% for path in dir_path_list %}
                 {% set path_without_space = path | replace(" ","%20") %}
                 <div class="col-xl-4 col-lg-6 col-sm-12 col-md-12">
-                    <!-- <p> Hi There</p> -->
-                    <form action="/view-selected-subfolder" method="post" enctype="multipart/form-data">
-                        <input id="dyn_dir_name" name="dyn_dir_name" class="btn btn-outline-success mb-1" type="submit" value="{{ path }}" />
-                    </form>
+                        <!-- <p> Hi There</p> -->
+                        <form action="/view-selected-subfolder" method="post" enctype="multipart/form-data">
+                            <input id="dyn_dir_name" name="dyn_dir_name" class="btn btn-outline-success mb-1" type="submit" value="{{ path }}" />
+                        </form>
                 </div>
             {% endfor %}
     </div> 
@@ -140,12 +138,7 @@
     <br/>
     {% endif %}
 
-    {% if directory_path.startswith('RecycleBin-ToBeDeleted/') %}
-        <input class="btn btn-outline-primary col-sm-12" id="DeleteFolderRecursively" type="submit" title="Permanently delete all photos in this folder" value="Permanently delete this folder" onclick="permanentlyDeleteFolder()">
-    {% else %}
-        <input class="btn btn-outline-primary col-sm-12" id="MoveFilesToBin" type="submit" title="Delete: Selected files to Recycle-Bin" value="Delete: Selected files to Recycle-Bin" onclick="DeleteSelectedImages()">
-    {% endif %}
-
+    <input class="btn btn-outline-primary col-sm-12" id="MoveFilesToBin" type="submit" title="Delete: Selected files to Recycle-Bin" value="Delete: Selected files to Recycle-Bin" onclick="DeleteSelectedImages()">
     <style>
         .MoveFilesSection {
             display: flex;
@@ -170,47 +163,19 @@
     </div>
 
 <script>
-    // Load dropdown values at the time of page load if session storage variable exists
-    const allDirList = sessionStorage.getItem("allDirList");
-    if (allDirList != null){
-        const selectList = document.getElementById("dir_name");
-        selectList.innerHTML = null;
-        const allDirListJson = JSON.parse(allDirList);
-        allDirListJson.forEach(element => {
-            // console.log(element)
-            const option = document.createElement("option");
-            option.textContent = element
-            option.value = element
-            selectList.appendChild(option);
-        });
-    }
-
-    if (allDirList != null){
-        const moveSelectList = document.getElementById("move_dir_name");
-        moveSelectList.innerHTML = null;
-        const allMoveDirListJson = JSON.parse(allDirList);
-        allMoveDirListJson.forEach(element => {
-            // console.log(element)
-            const option = document.createElement("option");
-            option.textContent = element
-            option.value = element
-            moveSelectList.appendChild(option);
-        });
-    }
-
 function reloadDirList(){
          // Create a progress bar element
         // var progressBar = $("<div id='progressbar'></div>");
         // Disable the Refresh Button
-        // document.getElementById('ReloadButton').disabled = true;
+        document.getElementById('ReloadButton').disabled = true;
         var progressBar = document.getElementById('progressbar')
         progressBar.style.display = 'block';
         
         // Append it to the document body
         // $("body").append(progressBar);
         var percentComplete = 10;
-        // Set the maximum timeout to 10 seconds
-        var timeout = 10000;
+        // Set the maximum timeout to 12 seconds
+        var timeout = 12000;
         // Set the interval to update the progress bar every 100 milliseconds
         var interval = setInterval(function() {
             // Increment the percentage by one
@@ -226,7 +191,7 @@ function reloadDirList(){
         timeout -= 100;
         }, 90);
 
-        const fastApiReloadMethodUrl = 'get-all-dir-local-storage';
+        const fastApiReloadMethodUrl = 'get-all-dir-list';
         $.ajax({
                 url: fastApiReloadMethodUrl,
                 type: "POST",
@@ -236,41 +201,14 @@ function reloadDirList(){
                 data: {},
                 contentType: "application/json",
                 success: function(response) {
-                    // console.log(response);  
-                    //document.getElementById("result").innerHTML = JSON.stringify(response);
-                    // localStorage.setItem('allDirList', JSON.stringify(response));  
-                    sessionStorage.setItem('allDirList', JSON.stringify(response));  
+                    console.log(response);  
                         // Hide the progress bar
                         // progressBar.hide();
                         // Clear the interval
                         clearInterval(interval);
                     // progressBar.hide();
                         progressBar.style.display = "none";
-                       // window.location.reload(true);       
-                       
-                    // Add options in drop-down using sessionStorage variable
-                    const selectList = document.getElementById("dir_name");
-                    selectList.innerHTML = null;
-                    const allDirList = sessionStorage.getItem("allDirList");
-                    const allDirListJson = JSON.parse(allDirList);
-                    allDirListJson.forEach(element => {
-                        // console.log(element)
-                        const option = document.createElement("option");
-                        option.textContent = element
-                        option.value = element
-                        selectList.appendChild(option);
-                    });
-
-                    const moveSelectList = document.getElementById("move_dir_name");
-                    moveSelectList.innerHTML = null;
-                    const allMoveDirListJson = JSON.parse(allDirList);
-                    allMoveDirListJson.forEach(element => {
-                        // console.log(element)
-                        const option = document.createElement("option");
-                        option.textContent = element
-                        option.value = element
-                        moveSelectList.appendChild(option);
-                    });
+                       // window.location.reload(true);                  
                 },
                 error: function(error) {
                     console.log(error);
@@ -309,7 +247,9 @@ function DeleteSelectedImages() {
             console.log("User cancelled the operation....")
             return "User cancelled the operation";
         }
+
         var json_arr_si = JSON.stringify(arr_si);
+
         const fastApiMethodUrl = 'move-files-to-bin';
         $.ajax({
                 url: fastApiMethodUrl,
@@ -321,10 +261,12 @@ function DeleteSelectedImages() {
                 contentType: "application/json",
                 success: function(response) {
                     console.log(response);
+                    
                     // window.location.reload();
                     // document.getElementById("dynamic_js_msg_view").innerHTML = "Selected files are successfully moved to Recycle Bin." + arr_si_len
-                    let alertMsg = "Selected files("+arr_si_len+") are successfully moved to Recycle Bin. Contact Kanishk if mistakenly deleted"
+                    let alertMsg = "Selected files("+arr_si_len+") are successfully moved to Recycle Bin. Contact admin if mistakenly deleted"
                     alert (alertMsg)
+
                     setTimeout(function () { // wait 0 seconds and reload
                             window.location.reload(true);
                         }, 0);
@@ -338,41 +280,8 @@ function DeleteSelectedImages() {
             });       
     };
 
-function permanentlyDeleteFolder() {  
-    var currentDir = document.getElementById("currentDir").innerHTML;
-    console.log(currentDir);
-    let alertMsg = "You have selected folder (" + currentDir + ") to be permanently deleted including all the contents present in this folder. This is a non-reversible action. Please confirm to proceed."  
-    // alert (alertMsg)
-    userInput = window.confirm(alertMsg)
-    if (!(userInput)){
-        console.log("User cancelled the operation....")
-        return "User cancelled the operation";
-    }
-    currentDirJson = JSON.stringify(currentDir)
-    const fastApiMethodUrl = 'delete-folder-recursively';
-    $.ajax({
-            url: fastApiMethodUrl,
-            type: "POST",
-            headers: {
-                        'Content-Type': 'application/json',
-                    },
-            data: currentDirJson,
-            contentType: "application/json",
-            success: function(response) {
-                console.log(response); 
-                let alertMsg = "Folder ("+currentDir+") is successfully deleted."
-                alert (alertMsg)
-                window.location.replace("view-photos-root");                
-            },
-            error: function(error) {
-                console.log(error);
-                let alertMsg = "Error occured in folder deleting: " + error.responseText 
-                alert (alertMsg)
-            }
-        });       
-};
-
 function MoveSelectedImages() { 
+
         var selectedValue = document.getElementById("move_dir_name").value;
         if (selectedValue.length == 0) {
             console.log ("No folder selected to move the files. Please select the folder to move the files to.")
@@ -380,9 +289,7 @@ function MoveSelectedImages() {
             return "No folder selected";
         }
         console.log(selectedValue);
-        var browsingFolder = document.getElementById("currentDir").innerHTML;
-        console.log("Testing 123: ")
-        console.log(currentDir);
+        var browsingFolder = document.getElementById("dir_name").value;
         if ( browsingFolder == selectedValue) {
             console.log ("Same source and destination folder. Please choose a different destination foler.")
             alert ("Same source and destination folder. Please choose a different destination foler.")
@@ -556,7 +463,7 @@ function MoveSelectedImages() {
                     
     //                 // window.location.reload();
     //                 // document.getElementById("dynamic_js_msg_view").innerHTML = "Selected files are successfully moved to Recycle Bin." + arr_si_len
-    //                 let alertMsg = "Selected files("+arr_si_len+") are successfully moved to Recycle Bin. Contact Kanishk if mistakenly deleted"
+    //                 let alertMsg = "Selected files("+arr_si_len+") are successfully moved to Recycle Bin. Contact admin if mistakenly deleted"
     //                 alert (alertMsg)
 
     //                 setTimeout(function () { // wait 3 seconds and reload

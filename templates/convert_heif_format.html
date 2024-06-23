@@ -1,0 +1,191 @@
+{% extends "index.html" %}
+
+{% block body %}
+    <div class="bg-light">
+        <h3>Dear {{ user_name }}, Welcome to photo format converion tool - .heic to .jpeg </h3>
+        <h6 class="text-success"><i>.heic files don't render on web browsers, and a plugin is required to render such images. This utility can be used to convert .heic files to .jpeg keeping the aspect ratio intact , so you can relive your memories without needing to worry about additional plugins. !!!</i></h6>
+    </div>
+    <br/>
+
+    <form method="post" action="/convert-heic-files" enctype="multipart/form-data">
+        <label for="dir_name">Memory:</label>
+        <select id="dir_name" name="dir_name">
+            <option disabled selected value hidden> -- select the folder -- </option>
+            {% for dir in all_dir_list %}
+                <option value="{{dir}}">{{dir}}</option>
+            {% endfor %}
+        </select>
+        <input class="btn btn-success btn-sm" type="submit">
+    </form>
+    <style>
+        .ReloadButtonAndMsg {
+            display: flex;
+            /* justify-content: center;
+            align-items: center; */
+            margin-right: 10px;
+        }
+        #ReloadButton {
+            margin-right: 10px;
+        }
+    </style>
+    <br/>
+    <div class="ReloadButtonAndMsg">
+        <button class="btn btn-outline-primary col-sm-2" id="ReloadButton" onclick="reloadDirList()">Refresh Folders*</button>
+        <p class="text-primary">*Dropdown shows only parent folder by default. If you would like to see all values, please click Refresh Folders button; it takes around 5 seconds to fetch all folder list.</p>
+    </div>
+    <style>
+        #progressbar {
+            width: 10%;
+            height: 30px;
+            background-color: #04AA6D;
+            text-align: center; /* To center it horizontally (if you want) */
+            line-height: 30px; /* To center it vertically */
+            color: white;
+            display: none;
+        }
+    </style>
+    <div id='progressbar'></div>
+
+    <br>
+    {% if conversion_flag == 1 %}
+        {% set conv_files_list_len = heic_files_list_deleted | length %}
+        <h4 class="text-success">{{ conv_files_list_len }} file(s) converted. List of .heic files converted to .jpeg: </h4>
+        <ul>
+            {% for file in heic_files_list_deleted %}
+                <li>{{ file }}</li>
+            {% endfor %} 
+        </ul>
+        <br/>
+    {% endif %}
+
+
+    {% if no_dir_selected == 1 %}
+        <b><p>Please select a folder to view the list of heic files.</p></b>
+    {% else %}
+        {% set heic_files_list_len = heic_files_list | length %}
+        {% if heic_files_list_len > 0 %}
+            <h4 class="text-primary">{{ heic_files_list_len }} file(s) found. List of .heic files in folder "<i>"{{ dir_name }}"</i>:"</h4>
+            <ul>
+                {% for file in heic_files_list %}
+                    <li>{{ file }}</li>
+                {% endfor %}
+            </ul>
+            <form method="post" action="/convert-selected-files-to-jpeg">
+                <div class="mb-3 row">
+                    <input type="submit" class="btn btn-outline-success col-sm-12" value="Convert listed .heic to .jpeg">
+                </div>
+            </form>
+
+        {% else %}
+            <h4 class="text-primary">No file found with .heic format in <i>"{{ dir_name }}"</i> folder and its sub-folders. Cheers !!<h4 class="text-success">
+        {% endif %}
+    {% endif %}
+
+<script>
+
+// Load dropdown values at the time of page load if session storage variable exists
+const allDirList = sessionStorage.getItem("allDirList");
+if (allDirList != null){
+    const selectList = document.getElementById("dir_name");
+    selectList.innerHTML = null;
+    const allDirListJson = JSON.parse(allDirList);
+    allDirListJson.forEach(element => {
+        // console.log(element)
+        const option = document.createElement("option");
+        option.textContent = element
+        option.value = element
+        selectList.appendChild(option);
+    });
+}
+
+function reloadDirList(){
+         // Create a progress bar element
+        // var progressBar = $("<div id='progressbar'></div>");
+        // Disable the Refresh Button
+        // document.getElementById('ReloadButton').disabled = true;
+        var progressBar = document.getElementById('progressbar')
+        progressBar.style.display = 'block';
+        
+        // Append it to the document body
+        // $("body").append(progressBar);
+        var percentComplete = 10;
+        // Set the maximum timeout to 10 seconds
+        var timeout = 10000;
+        // Set the interval to update the progress bar every 100 milliseconds
+        var interval = setInterval(function() {
+            // Increment the percentage by one
+            percentComplete++;
+            // Update the progress bar width and text
+            progressBar.style.width = percentComplete + "%";
+            progressBar.innerHTML = percentComplete + "%";
+            // If the percentage reaches 100 or the timeout is exceeded, stop the interval
+            if (percentComplete >= 100 || timeout <= 0) {
+                clearInterval(interval);
+            }
+        // Decrease the timeout by the interval duration
+        timeout -= 100;
+        }, 90);
+
+        const fastApiReloadMethodUrl = 'get-all-dir-local-storage';
+        $.ajax({
+                url: fastApiReloadMethodUrl,
+                type: "POST",
+                headers: {
+                            'Content-Type': 'application/json',
+                        },
+                data: {},
+                contentType: "application/json",
+                success: function(response) {
+                    // console.log(response);  
+                    //document.getElementById("result").innerHTML = JSON.stringify(response);
+                    // localStorage.setItem('allDirList', JSON.stringify(response));  
+                    sessionStorage.setItem('allDirList', JSON.stringify(response));  
+                        // Hide the progress bar
+                        // progressBar.hide();
+                        // Clear the interval
+                        clearInterval(interval);
+                    // progressBar.hide();
+                        progressBar.style.display = "none";
+                       // window.location.reload(true);       
+                       
+                    // Add options in drop-down using sessionStorage variable
+                    const selectList = document.getElementById("dir_name");
+                    selectList.innerHTML = null;
+                    const allDirList = sessionStorage.getItem("allDirList");
+                    const allDirListJson = JSON.parse(allDirList);
+                    allDirListJson.forEach(element => {
+                        // console.log(element)
+                        const option = document.createElement("option");
+                        option.textContent = element
+                        option.value = element
+                        selectList.appendChild(option);
+                    });
+                },
+                error: function(error) {
+                    console.log(error);
+                }
+            });       
+    }
+
+    //     function reloadDirList(){
+    //     const fastApiReloadMethodUrl = 'get-all-dir-list';
+    //     console.log("Executing function reloadDirList")
+    //     $.ajax({
+    //             url: fastApiReloadMethodUrl,
+    //             type: "POST",
+    //             headers: {
+    //                         'Content-Type': 'application/json',
+    //                     },
+    //             data: {},
+    //             contentType: "application/json",
+    //             success: function(response) {
+    //                 console.log(response);  
+    //                 window.location.reload(true);                  
+    //             },
+    //             error: function(error) {
+    //                 console.log(error);
+    //             }
+    //         });       
+    // }
+</script>
+{% endblock %}

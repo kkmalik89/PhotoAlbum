@@ -1,0 +1,10 @@
+
+{% extends "index.html" %}
+
+{% block body %}
+<h3 class="text-success">
+    You don't seem to have access to required storage account. You should have read access ("Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read") enabled on this container. 
+    <br><br>
+    Please reach out to your site-admin for troubleshooting.
+</h3>
+{% endblock %}

@@ -6,16 +6,62 @@
         {% if created_dir != "" %}
             <h3 class="text-success"> Folder created: {{ created_dir }}</h3>
         {% endif %}
+        {% if filenames != "" %}
+            <p class="text-success" white-space: pre-wrap;>  Uploaded {{ fileCount }} files: <br/>
+                {% autoescape false %}  {{ filenames | replace('\n', '<br>') }} 
+                {% endautoescape %}
+            </p>
+        {% endif %}
         <br/>
-        <h4 class="text-success">Upload one or more pictures using this form:</h4>
+        <h4 class="text-success">Dear {{ user_name }}, Upload one or more pictures using this form:</h4>
+        <br/>
+
+        <style>
+            .ReloadButtonAndMsg {
+                display: flex;
+                /* justify-content: center;
+                align-items: center; */
+                margin-right: 10px;
+            }
+            #ReloadButton {
+                margin-right: 10px;
+            }
+            #ReloadMsg {
+                font-size: 11px;
+            }
+        </style>
+        <div class="ReloadButtonAndMsg">
+            <button class="btn btn-outline-primary col-sm-2" id="ReloadButton" onclick="reloadDirList()" title="Dropdown shows only parent folder by default. If you would like to see all values, please click Refresh Folders button; it takes around 5 seconds to fetch all folder list.">Refresh Folders*</button>
+            <p class="text-primary" id="ReloadMsg">*Dropdown shows only parent folder by default and may not show the latest folder you created during the active session. If you would like to see all folders, please click Refresh Folders button; it takes around 5 seconds to fetch all folder list.</p>
+        </div>
+        
+        <style>
+            #progressbar {
+                width: 10%;
+                height: 30px;
+                background-color: #04AA6D;
+                text-align: center; /* To center it horizontally (if you want) */
+                line-height: 30px; /* To center it vertically */
+                color: white;
+                display: none;
+            }
+        </style>
+        <div id='progressbar'></div>
+    
+        <br/>
+        
         <form method="post" action="/upload-photos" enctype="multipart/form-data" class="mb-4">
             <div class="mb-3 row">
                 <label for="dir_name" class="col-sm-2">Choose the folder:</label>
                 <div class="col-sm-10">
                     <select id="dir_name" name="dir_name">
-                        <option disabled selected value class="text-success"> -- Select the folder -- </option>
+                        <option disabled selected value hidden class="text-success"> -- Select the folder -- </option>
                         {% for dir in dir_path_list %}
-                            <option value="{{dir}}">{{dir}}</option>
+                            {% if directory_path == dir %}
+                                <option value="{{dir}}" selected>{{dir}}</option>
+                            {% else %}
+                                <option value="{{dir}}">{{dir}}</option>
+                            {% endif %}
                         {% endfor %}
                     </select>
                 </div>
@@ -30,13 +76,14 @@
                     <input class="btn btn-outline-success col-sm-12" type="submit" value="Upload">
             </div>
         </form> 
+
         <br/>
-        <h4 class="text-success">Want a create a new folder? If yes, please provide below information: </h4>
+        <h4 class="text-success">Want to create a new folder? If yes, please provide below information: </h4>
         <form method="post" action="/new-folder">
             <div class="mb-3 row">
                 <label for="dir_name" class="col-sm-2">Parent folder:</label>
                 <div class="col-sm-10">
-                    <select id="dir_name" name="dir_name">
+                    <select id="parent_dir_name" name="dir_name">
                         <option disabled selected value> -- select the parent folder -- </option>
                         {% for dir in dir_path_list %}
                             <option value="{{dir}}">{{dir}}</option>
@@ -54,4 +101,163 @@
                 <input type="submit" class="btn btn-outline-success col-sm-12" value="Create Folder">
             </div>
         </form>
+
+<script>
+    // Load dropdown values at the time of page load if session storage variable exists
+    const allDirList = sessionStorage.getItem("allDirList");
+    if (allDirList != null){
+        const selectList = document.getElementById("dir_name");
+        selectList.innerHTML = null;  // Clear dropdown values
+        const allDirListJson = JSON.parse(allDirList);
+        allDirListJson.forEach(element => {
+            // console.log(element)
+            const option = document.createElement("option");
+            option.textContent = element
+            option.value = element
+            selectList.appendChild(option);
+        });
+    }
+
+    const parentAllDirList = sessionStorage.getItem("allDirList");
+    if (parentAllDirList != null){
+        const parentSelectList = document.getElementById("parent_dir_name");
+        parentSelectList.innerHTML = null; // Clear dropdown values
+        const parentAllDirListJson = JSON.parse(allDirList);
+        parentAllDirListJson.forEach(element => {
+            // console.log(element)
+            const option = document.createElement("option");
+            option.textContent = element
+            option.value = element
+            parentSelectList.appendChild(option);
+        });
+    }
+
+function reloadDirList(){
+        // Create a progress bar element
+    // var progressBar = $("<div id='progressbar'></div>");
+    // Disable the Refresh Button
+    // document.getElementById('ReloadButton').disabled = true;
+    var progressBar = document.getElementById('progressbar')
+    progressBar.style.display = 'block';
+    
+    // Append it to the document body
+    // $("body").append(progressBar);
+    var percentComplete = 10;
+    // Set the maximum timeout to 10 seconds
+    var timeout = 10000;
+    // Set the interval to update the progress bar every 100 milliseconds
+    var interval = setInterval(function() {
+        // Increment the percentage by one
+        percentComplete++;
+        // Update the progress bar width and text
+        progressBar.style.width = percentComplete + "%";
+        progressBar.innerHTML = percentComplete + "%";
+        // If the percentage reaches 100 or the timeout is exceeded, stop the interval
+        if (percentComplete >= 100 || timeout <= 0) {
+            clearInterval(interval);
+        }
+    // Decrease the timeout by the interval duration
+    timeout -= 100;
+    }, 90);
+
+    const fastApiReloadMethodUrl = 'get-all-dir-local-storage';
+    $.ajax({
+            url: fastApiReloadMethodUrl,
+            type: "POST",
+            headers: {
+                        'Content-Type': 'application/json',
+                    },
+            data: {},
+            contentType: "application/json",
+            success: function(response) {
+                console.log(response);  
+                //document.getElementById("result").innerHTML = JSON.stringify(response);
+                // localStorage.setItem('allDirList', JSON.stringify(response));  
+                sessionStorage.setItem('allDirList', JSON.stringify(response));  
+                    // Hide the progress bar
+                    // progressBar.hide();
+                    // Clear the interval
+                    clearInterval(interval);
+                // progressBar.hide();
+                    progressBar.style.display = "none";
+                    // window.location.reload(true);       
+                    
+                // Add options in drop-down using sessionStorage variable
+                const selectList = document.getElementById("dir_name");
+                selectList.innerHTML = null;
+                const allDirList = sessionStorage.getItem("allDirList");
+                const allDirListJson = JSON.parse(allDirList);
+                allDirListJson.forEach(element => {
+                    console.log(element)
+                    const option = document.createElement("option");
+                    option.textContent = element
+                    option.value = element
+                    selectList.appendChild(option);
+                });
+
+                const parentSelectList = document.getElementById("parent_dir_name");
+                    parentSelectList.innerHTML = null; // Clear dropdown values
+                    const parentAllDirList = sessionStorage.getItem("allDirList");
+                    const parentAllDirListJson = JSON.parse(allDirList);
+                    parentAllDirListJson.forEach(element => {
+                        console.log(element)
+                        const option = document.createElement("option");
+                        option.textContent = element
+                        option.value = element
+                        parentSelectList.appendChild(option);
+                    });
+
+            },
+            error: function(error) {
+                console.log(error);
+            }
+        });       
+}
+
+// function reloadDirList(){
+//     const fastApiReloadMethodUrl = 'get-all-dir-local-storage';
+//     console.log("Executing function reloadDirList")
+//     $.ajax({
+//             url: fastApiReloadMethodUrl,
+//             type: "POST",
+//             headers: {
+//                         'Content-Type': 'application/json',
+//                     },
+//             data: {},
+//             contentType: "application/json",
+//             success: function(response) {
+//                 console.log(response);  
+//                 sessionStorage.setItem('allDirList', JSON.stringify(response)); 
+                
+//                 const selectList = document.getElementById("dir_name");
+//                 selectList.innerHTML = null; // Clear dropdown values
+//                 const allDirList = sessionStorage.getItem("allDirList");
+//                 const allDirListJson = JSON.parse(allDirList);
+//                 allDirListJson.forEach(element => {
+//                     console.log(element)
+//                     const option = document.createElement("option");
+//                     option.textContent = element
+//                     option.value = element
+//                     selectList.appendChild(option);
+//                 });
+
+//                 const parentSelectList = document.getElementById("parent_dir_name");
+//                 parentSelectList.innerHTML = null; // Clear dropdown values
+//                 const parentAllDirList = sessionStorage.getItem("allDirList");
+//                 const parentAllDirListJson = JSON.parse(allDirList);
+//                 parentAllDirListJson.forEach(element => {
+//                     console.log(element)
+//                     const option = document.createElement("option");
+//                     option.textContent = element
+//                     option.value = element
+//                     parentSelectList.appendChild(option);
+//                 });
+//                 // window.location.reload(true);                  
+//             },
+//             error: function(error) {
+//                 console.log(error);
+//             }
+//         });       
+// }
+</script>
 {% endblock %}

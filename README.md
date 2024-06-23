@@ -69,7 +69,10 @@ Ensure that you put sensitive parameters like STORAGE_ACCOUNT_KEY and CLIENT_SEC
 
 ![Alt text](image.png)
 
+## Dockerization
+Command: docker build -t kanishkmalik/kk-photo-album .
 
+docker run  -p 8000:8000 kanishkmalik/kk-photo-album
 
-
+docker run --name kk-app -d -p 8000:8000 kanishkmalik/kk-photo-album  
 

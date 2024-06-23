@@ -43,15 +43,21 @@ def get_container_client():
         # container_client = blob_service_client.create_container(container_name) # create a container in the storage account if it does not exist
     return container_client
 
-def upload_multiple_files_to_storage(container_client: ContainerClient, files_list: list[UploadFile], dir_name: str):
+def upload_multiple_files_to_storage(container_client: ContainerClient, files_list: list[UploadFile], dir_name: str, user_name: str):
     filenames = ''
     count=0
     for _file in files_list:
         # print (_file.filename)
         if dir_name == "/":
-            blob_file_name = _file.filename
+            if user_name and user_name != "":
+                blob_file_name = user_name+"_"+_file.filename
+            else:
+                blob_file_name = _file.filename
         else:
-            blob_file_name = dir_name + '/' + _file.filename
+            if user_name and user_name != "":
+                blob_file_name = dir_name + '/' + user_name+"_"+_file.filename
+            else:
+                blob_file_name = dir_name + '/' + _file.filename
         container_client.upload_blob(blob_file_name, _file.file, overwrite=True) # upload the file to the container using the filename as the blob name
         filenames += _file.filename + "\n"
         count+=1
